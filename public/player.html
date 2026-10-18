@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220"><title>Audio Player</title><link rel="stylesheet" href="/style.css">
+</head>
+<body><main>
+  <header><div><h1>Audio Player</h1><div class="subtitle">Phone connected to the speaker</div></div><span id="connection" class="pill">Connecting…</span></header>
+  <section class="card">
+    <div class="eyebrow">Now selected</div><div id="trackTitle" class="track-title">Connecting to controller…</div>
+    <div id="trackCount" class="muted">Waiting for track list</div>
+    <div class="secondary-controls"><button id="enableAudio" class="primary">Enable audio</button><button id="localPlay">Play selected</button></div>
+    <p id="message" class="muted">Tap Enable audio once on this phone before using the remote.</p>
+  </section>
+  <section class="card"><div class="eyebrow">Tracks</div><div id="trackList" class="track-list"></div></section>
+  <div class="notice">Keep this page open while using the controller. For the most reliable playback, keep the phone awake and connected to power. If the phone locks, its browser may suspend audio or Wi-Fi.</div>
+  <audio id="audio" preload="auto" playsinline></audio>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const audio = $("audio");
+  let socket, tracks = [], currentIndex = 0, enabled = false, commandQueue = Promise.resolve();
+  let reconnectDelay = 500;
+  const socketUrl = `ws://${location.host}`;
+
+  function setConnection(online, text) {
+    $("connection").textContent = text;
+    $("connection").classList.toggle("online", online);
+  }
+  function renderTracks() {
+    $("trackList").innerHTML = "";
+    tracks.forEach((track, i) => {
+      const b = document.createElement("button");
+      b.className = "track-button" + (i === currentIndex ? " active" : "");
+      const n = document.createElement("span"); n.className = "track-number"; n.textContent = String(i + 1);
+      const t = document.createElement("span"); t.textContent = track.title || `Track ${i + 1}`;
+      b.append(n, t);
+      b.addEventListener("click", () => selectTrack(i, true));
+      $("trackList").appendChild(b);
+    });
+  }
+  function showTrack() {
+    const track = tracks[currentIndex];
+    $("trackTitle").textContent = track ? (track.title || `Track ${currentIndex + 1}`) : "No tracks found";
+    $("trackCount").textContent = track ? `Track ${currentIndex + 1} of ${tracks.length}` : "Add MP3 files to public/audio";
+    renderTracks();
+  }
+  async function selectTrack(i, autoplay) {
+    if (!tracks.length) return;
+    currentIndex = (i + tracks.length) % tracks.length;
+    showTrack();
+    const track = tracks[currentIndex];
+    const newSrc = `/audio/${encodeURIComponent(track.file)}`;
+    if (!audio.src.endsWith(newSrc)) {
+      audio.pause();
+      audio.src = newSrc;
+      audio.load();
+    }
+    if (autoplay && enabled) {
+      try { await audio.play(); $("message").textContent = "Playing through this phone's audio output."; }
+      catch { $("message").textContent = "Tap Enable audio, then Play selected. The browser may require a user gesture."; }
+    } else {
+      $("message").textContent = "Track selected. Tap Enable audio / Play selected if needed.";
+    }
+  }
+  function execute(msg) {
+    commandQueue = commandQueue.then(async () => {
+      if (Number.isInteger(msg.trackIndex) && msg.trackIndex !== currentIndex) await selectTrack(msg.trackIndex, false);
+      if (msg.command === "next" || msg.command === "previous" || msg.command === "select") {
+        await selectTrack(Number.isInteger(msg.trackIndex) ? msg.trackIndex : currentIndex, true);
+      } else if (msg.command === "play") {
+        if (!audio.src && tracks.length) await selectTrack(currentIndex, false);
+        if (enabled) {
+          try { await audio.play(); $("message").textContent = "Playing."; }
+          catch { $("message").textContent = "Playback was blocked. Tap Enable audio on this phone, then retry."; }
+        } else $("message").textContent = "Tap Enable audio on this phone first.";
+      } else if (msg.command === "pause") {
+        audio.pause(); $("message").textContent = "Paused.";
+      } else if (msg.command === "stop") {
+        audio.pause(); audio.currentTime = 0; $("message").textContent = "Stopped.";
+      }
+    }).catch(err => console.error(err));
+  }
+  function connect() {
+    setConnection(false, "Connecting…");
+    socket = new WebSocket(socketUrl);
+    socket.addEventListener("open", () => { reconnectDelay = 500; setConnection(true, "Connected"); socket.send(JSON.stringify({type:"getState"})); });
+    socket.addEventListener("message", event => {
+      let msg; try { msg = JSON.parse(event.data); } catch { return; }
+      if (msg.type === "hello") {
+        tracks = Array.isArray(msg.tracks) ? msg.tracks : [];
+        currentIndex = Math.min(msg.state?.trackIndex || 0, Math.max(0, tracks.length - 1));
+        showTrack();
+        if (tracks.length) selectTrack(currentIndex, false);
+      } else if (msg.type === "command") execute(msg);
+    });
+    socket.addEventListener("close", () => {
+      setConnection(false, "Reconnecting…");
+      setTimeout(connect, reconnectDelay);
+      reconnectDelay = Math.min(reconnectDelay * 1.7, 5000);
+    });
+    socket.addEventListener("error", () => setConnection(false, "Connection error"));
+  }
+  $("enableAudio").addEventListener("click", async () => {
+    enabled = true;
+    try {
+      if (tracks.length && !audio.src) await selectTrack(currentIndex, false);
+      await audio.play();
+      $("message").textContent = "Audio enabled. Remote controls are ready.";
+      $("enableAudio").textContent = "Audio enabled";
+      $("enableAudio").disabled = true;
+    } catch {
+      $("message").textContent = "Audio is ready to be enabled. If no sound is heard, check the cable and tap Play selected.";
+    }
+  });
+  $("localPlay").addEventListener("click", async () => {
+    enabled = true;
+    if (!audio.src && tracks.length) await selectTrack(currentIndex, false);
+    try { await audio.play(); $("message").textContent = "Playing."; }
+    catch { $("message").textContent = "Could not play. Check that the MP3 exists and tap Enable audio."; }
+  });
+  audio.addEventListener("ended", () => {
+    // Deliberately do not auto-advance: the remote controls the selected track.
+    $("message").textContent = "Track finished.";
+  });
+  connect();
+})();
+</script></body></html>

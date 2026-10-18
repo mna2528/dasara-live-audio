@@ -1,0 +1,9 @@
+{
+  "name": "live-mp3-controller",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local Wi-Fi MP3 player with a live two-phone controller",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "ws": "^8.18.0" }
+}

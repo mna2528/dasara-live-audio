@@ -1,0 +1,10 @@
+[
+  { "title": "Track 1", "file": "track01.mp3" },
+  { "title": "Track 2", "file": "track02.mp3" },
+  { "title": "Track 3", "file": "track03.mp3" },
+  { "title": "Track 4", "file": "track04.mp3" },
+  { "title": "Track 5", "file": "track05.mp3" },
+  { "title": "Track 6", "file": "track06.mp3" },
+  { "title": "Track 7", "file": "track07.mp3" },
+  { "title": "Track 8", "file": "track08.mp3" }
+]
