@@ -132,9 +132,16 @@ function broadcast(payload) {
   }
 }
 
+
 wss.on("connection", (ws, req) => {
-  console.log("WebSocket connected:", req.headers["user-agent"]);
   clients.add(ws);
+
+  console.log(
+    "WebSocket client connected:",
+    req.headers["user-agent"],
+    "Total:",
+    clients.size
+  );
 
   send(ws, {
     type: "hello",
@@ -209,12 +216,23 @@ wss.on("connection", (ws, req) => {
   });
 
   ws.on("close", (code, reason) => {
-  console.log(
-    "WebSocket disconnected:",
-    "code =", code,
-    "reason =", reason.toString()
-  );
+    clients.delete(ws);
+
+    console.log(
+      "WebSocket client disconnected:",
+      "code =", code,
+      "reason =", reason.toString(),
+      "Remaining =", clients.size
+    );
+
+    broadcast({ type: "clients", clientCount: clients.size });
+  });
+
+  ws.on("error", (error) => {
+    console.error("WebSocket error:", error.message);
+  });
 });
+
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Live MP3 Controller running on http://localhost:${PORT}`);
