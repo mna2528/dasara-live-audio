@@ -132,8 +132,8 @@ function broadcast(payload) {
   }
 }
 
-wss.on("connection", (ws) => {
-  console.log("WebSocket client connected. Total:", clients.size + 1);
+wss.on("connection", (ws, req) => {
+  console.log("WebSocket connected:", req.headers["user-agent"]);
   clients.add(ws);
 
   send(ws, {
@@ -208,11 +208,12 @@ wss.on("connection", (ws) => {
     });
   });
 
-  ws.on("close", () => {
-    console.log("WebSocket client disconnected.");
-    clients.delete(ws);
-    broadcast({ type: "clients", clientCount: clients.size });
-  });
+  ws.on("close", (code, reason) => {
+  console.log(
+    "WebSocket disconnected:",
+    "code =", code,
+    "reason =", reason.toString()
+  );
 });
 
 server.listen(PORT, "0.0.0.0", () => {
