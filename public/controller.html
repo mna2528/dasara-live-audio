@@ -57,7 +57,9 @@
   $("stop").addEventListener("click", () => send("stop"));
   function connect() {
     setConnection(false, "Connecting…");
-    socket = new WebSocket(`ws://${location.host}`);
+    ws = new WebSocket(
+      `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}`
+    );
     socket.addEventListener("open", () => { reconnectDelay = 500; setConnection(true, "Connected"); socket.send(JSON.stringify({type:"getState"})); });
     socket.addEventListener("message", event => {
       let msg; try { msg = JSON.parse(event.data); } catch { return; }
