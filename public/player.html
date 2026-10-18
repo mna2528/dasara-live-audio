@@ -22,7 +22,7 @@
   const audio = $("audio");
   let socket, tracks = [], currentIndex = 0, enabled = false, commandQueue = Promise.resolve();
   let reconnectDelay = 500;
-  const socketUrl = `ws://${location.host}`;
+  const socketUrl = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}`;
 
   function setConnection(online, text) {
     $("connection").textContent = text;
