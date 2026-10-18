@@ -133,6 +133,7 @@ function broadcast(payload) {
 }
 
 wss.on("connection", (ws) => {
+  console.log("WebSocket client connected. Total:", clients.size + 1);
   clients.add(ws);
 
   send(ws, {
@@ -208,6 +209,7 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
+    console.log("WebSocket client disconnected.");
     clients.delete(ws);
     broadcast({ type: "clients", clientCount: clients.size });
   });
