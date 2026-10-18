@@ -59,17 +59,17 @@
 function connect() {
   setConnection(false, "Connecting…");
 
-  ws = new WebSocket(
+  socket = new WebSocket(
     `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}`
   );
 
-  ws.addEventListener("open", () => {
+  socket.addEventListener("open", () => {
     reconnectDelay = 500;
     setConnection(true, "Connected");
-    ws.send(JSON.stringify({ type: "getState" }));
+    socket.send(JSON.stringify({ type: "getState" }));
   });
 
-  ws.addEventListener("message", event => {
+  socket.addEventListener("message", event => {
     let msg;
 
     try {
@@ -98,14 +98,14 @@ function connect() {
     }
   });
 
-  ws.addEventListener("close", () => {
+  socket.addEventListener("close", () => {
     setConnection(false, "Reconnecting…");
 
     setTimeout(connect, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 1.7, 5000);
   });
 
-  ws.addEventListener("error", () => {
+  socket.addEventListener("error", () => {
     setConnection(false, "Connection error");
   });
 }
